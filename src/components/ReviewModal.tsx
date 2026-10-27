@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { CATEGORY_META, type ReviewRating, type VocabularyEntry } from '../types'
-import { speakEnglishWord } from '../utils/speech'
 import { useDialogA11y } from '../utils/useDialogA11y'
 
 interface ReviewModalProps {
   entries: VocabularyEntry[]
   onClose: () => void
   onRate: (id: string, rating: ReviewRating) => void
+  onSpeak: (word: string) => void
 }
 
-export function ReviewModal({ entries, onClose, onRate }: ReviewModalProps) {
+export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalProps) {
   const dialogRef = useDialogA11y(onClose)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -65,7 +65,7 @@ export function ReviewModal({ entries, onClose, onRate }: ReviewModalProps) {
           <span className="tag" style={{ color: meta?.accent, background: meta?.pale }}>{meta?.label}</span>
           <div className="review-word-line">
             <h3>{current.word}</h3>
-            <button className="speech-button large" onClick={() => speakEnglishWord(current.word)} aria-label={`播放 ${current.word} 的发音`} title="播放单词发音">
+            <button className="speech-button large" onClick={() => onSpeak(current.word)} aria-label={`播放 ${current.word} 的发音`} title="播放单词发音">
               <Volume2 size={19} />
             </button>
           </div>

@@ -21,7 +21,7 @@ import {
 import { vocabularyRepository } from './data/repository'
 import { ReviewModal } from './components/ReviewModal'
 import { CATEGORY_META, type Category, type ReviewProgress, type ReviewRating, type VocabularyDraft, type VocabularyEntry } from './types'
-import { speakEnglishWord } from './utils/speech'
+import { getEnglishVoices, observeEnglishVoices, speakEnglishWord } from './utils/speech'
 import { useDialogA11y } from './utils/useDialogA11y'
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -58,6 +58,10 @@ export default function App() {
   const [validation, setValidation] = useState('')
   const [notice, setNotice] = useState('')
   const importInput = useRef<HTMLInputElement>(null)
+  const [englishVoices, setEnglishVoices] = useState<SpeechSynthesisVoice[]>(() => getEnglishVoices())
+  const [preferredVoiceURI, setPreferredVoiceURI] = useState(() => {
+    try { return window.localStorage.getItem('cet6-english-voice-v1') ?? '' } catch { return '' }
+  })
 
   const reviewSummary = useMemo(
     () => vocabularyRepository.reviewSummary(entries, reviewProgress),
@@ -89,6 +93,23 @@ export default function App() {
     const timer = window.setTimeout(() => setNotice(''), 3600)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => observeEnglishVoices(setEnglishVoices), [])
+
+  useEffect(() => {
+    try {
+      if (preferredVoiceURI) window.localStorage.setItem('cet6-english-voice-v1', preferredVoiceURI)
+      else window.localStorage.removeItem('cet6-english-voice-v1')
+    } catch {
+      // Voice choice is a convenience; playback still works if browser storage is unavailable.
+    }
+  }, [preferredVoiceURI])
+
+  function playWord(word: string) {
+    void speakEnglishWord(word, preferredVoiceURI).catch((error: unknown) => {
+      setNotice(error instanceof Error ? error.message : '语音播放失败，请切换英语音色后重试。')
+    })
+  }
 
   function openEditor(entry?: VocabularyEntry, preferredCategory?: Category) {
     setValidation('')
@@ -263,8 +284,21 @@ export default function App() {
             <span className="result-count">显示 <b>{filteredEntries.length}</b> / {entries.length}</span>
           </div>
 
+          <div className="speech-settings">
+            <label htmlFor="english-voice"><Volume2 size={15} /><span>英语发音</span></label>
+            <select id="english-voice" value={preferredVoiceURI} onChange={(event) => setPreferredVoiceURI(event.target.value)} aria-describedby="voice-help">
+              <option value="">自动选择英语音色</option>
+              {englishVoices.map((voice) => <option key={`${voice.voiceURI}-${voice.lang}`} value={voice.voiceURI}>
+                {voice.name} · {voice.lang}{voice.default ? '（系统默认）' : ''}
+              </option>)}
+            </select>
+            <span id="voice-help" className="voice-help">
+              {englishVoices.length ? `检测到 ${englishVoices.length} 个英语音色；音色由此设备和浏览器提供。` : '暂未检测到英语音色；仍会尝试使用系统默认英语语音。'}
+            </span>
+          </div>
+
           <div className="backup-row">
-            <p>词库保存在当前浏览器，建议定期备份。</p>
+            <p>网页版本会自动更新；词库仅保存在当前浏览器。换设备请先导出，再导入 JSON 备份。</p>
             <div className="backup-actions">
               <button className="button button-quiet" onClick={exportBackup} title="下载词条和复习进度"><Download size={15} /> 导出备份</button>
               <button className="button button-quiet" onClick={() => importInput.current?.click()} title="从六级词汇本 JSON 备份恢复"><Upload size={15} /> 导入备份</button>
@@ -284,7 +318,7 @@ export default function App() {
           </div>
 
           {filteredEntries.length > 0 ? <div className="word-grid">
-            {filteredEntries.map((entry) => <WordCard key={entry.id} entry={entry} onEdit={() => openEditor(entry)} onDelete={() => deleteEntry(entry)} />)}
+            {filteredEntries.map((entry) => <WordCard key={entry.id} entry={entry} onEdit={() => openEditor(entry)} onDelete={() => deleteEntry(entry)} onSpeak={playWord} />)}
           </div> : <div className="empty-state">
             <div className="empty-icon"><Search size={25} /></div>
             <h3>{showDueOnly && !reviewSummary.due ? '今天没有待复习的词' : '没有找到匹配的词汇'}</h3>
@@ -294,7 +328,7 @@ export default function App() {
         </section>
       </div>
 
-      <footer><span>六级词汇本</span><span>为每一个不认识的词，留下一张卡。词库保存在此浏览器，请记得导出备份。</span></footer>
+      <footer><span>六级词汇本</span><span>网页版本会自动更新；个人词库保存在本浏览器，可通过 JSON 备份迁移。</span></footer>
       {notice && <div className="notice-toast" role="status" aria-live="polite">{notice}</div>}
 
       {editor && <EditorModal
@@ -309,13 +343,14 @@ export default function App() {
       {reviewOpen && <ReviewModal
         entries={reviewSessionEntries}
         onRate={recordReview}
+        onSpeak={playWord}
         onClose={() => { setReviewOpen(false); setReviewSessionEntries([]) }}
       />}
     </main>
   )
 }
 
-function WordCard({ entry, onEdit, onDelete }: { entry: VocabularyEntry; onEdit: () => void; onDelete: () => void }) {
+function WordCard({ entry, onEdit, onDelete, onSpeak }: { entry: VocabularyEntry; onEdit: () => void; onDelete: () => void; onSpeak: (word: string) => void }) {
   const meta = CATEGORY_META[entry.category]
   return <article className="word-card" style={{ '--card-accent': meta.accent } as React.CSSProperties}>
     <div className="card-topline">
@@ -324,7 +359,7 @@ function WordCard({ entry, onEdit, onDelete }: { entry: VocabularyEntry; onEdit:
     </div>
     <div className="word-main">
       <h3>{entry.word}</h3>
-      <button className="speech-button" onClick={() => speakEnglishWord(entry.word)} aria-label={`播放 ${entry.word} 的发音`} title="播放单词发音"><Volume2 size={15} /></button>
+      <button className="speech-button" onClick={() => onSpeak(entry.word)} aria-label={`播放 ${entry.word} 的发音`} title="播放单词发音"><Volume2 size={15} /></button>
       {entry.phonetic && <span className="phonetic">{entry.phonetic}</span>}
     </div>
     <p className="definition">{entry.definition}</p>
