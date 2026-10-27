@@ -1,19 +1,28 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
   BookmarkPlus,
+  Check,
   ChevronRight,
   CircleHelp,
+  Download,
+  GraduationCap,
   ListFilter,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Sparkles,
   Trash2,
+  Upload,
+  Volume2,
   X,
 } from 'lucide-react'
 import { vocabularyRepository } from './data/repository'
-import { CATEGORY_META, type Category, type VocabularyDraft, type VocabularyEntry } from './types'
+import { ReviewModal } from './components/ReviewModal'
+import { CATEGORY_META, type Category, type ReviewProgress, type ReviewRating, type VocabularyDraft, type VocabularyEntry } from './types'
+import { speakEnglishWord } from './utils/speech'
+import { useDialogA11y } from './utils/useDialogA11y'
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const categoryList = Object.keys(CATEGORY_META) as Category[]
@@ -37,25 +46,49 @@ function categoryEntries(category: Category, entries: VocabularyEntry[]) {
 
 export default function App() {
   const [entries, setEntries] = useState<VocabularyEntry[]>(() => vocabularyRepository.list())
+  const [reviewProgress, setReviewProgress] = useState<Record<string, ReviewProgress>>(() => vocabularyRepository.getProgress())
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('all')
   const [activeLetter, setActiveLetter] = useState<string | null>(null)
+  const [showDueOnly, setShowDueOnly] = useState(false)
   const [editor, setEditor] = useState<EditorState>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewSessionEntries, setReviewSessionEntries] = useState<VocabularyEntry[]>([])
   const [draft, setDraft] = useState<VocabularyDraft>(() => emptyDraft())
   const [validation, setValidation] = useState('')
+  const [notice, setNotice] = useState('')
+  const importInput = useRef<HTMLInputElement>(null)
+
+  const reviewSummary = useMemo(
+    () => vocabularyRepository.reviewSummary(entries, reviewProgress),
+    [entries, reviewProgress],
+  )
+  const dueEntries = useMemo(
+    () => vocabularyRepository.listDueEntries(entries, reviewProgress),
+    [entries, reviewProgress],
+  )
+  const dueIds = useMemo(() => new Set(dueEntries.map((entry) => entry.id)), [dueEntries])
 
   const filteredEntries = useMemo(() => {
     const term = query.trim().toLocaleLowerCase()
     return entries.filter((entry) => {
       const matchesCategory = activeCategory === 'all' || entry.category === activeCategory
       const matchesLetter = !activeLetter || entry.word.toUpperCase().startsWith(activeLetter)
-      const haystack = `${entry.word} ${entry.definition} ${entry.note ?? ''}`.toLocaleLowerCase()
-      return matchesCategory && matchesLetter && (!term || haystack.includes(term))
+      const matchesDue = !showDueOnly || dueIds.has(entry.id)
+      const haystack = `${entry.word} ${entry.definition} ${entry.note ?? ''} ${entry.example ?? ''} ${entry.phonetic ?? ''}`.toLocaleLowerCase()
+      return matchesCategory && matchesLetter && matchesDue && (!term || haystack.includes(term))
     })
-  }, [activeCategory, activeLetter, entries, query])
+  }, [activeCategory, activeLetter, dueIds, entries, query, showDueOnly])
 
-  const featured = filteredEntries[0] ?? entries[0]
   const manualCount = entries.filter((entry) => entry.source === 'manual').length
+  const categoryCount = categoryList.filter((category) => categoryEntries(category, entries) > 0).length
+  const todayProgress = entries.length ? Math.min(100, Math.round((reviewSummary.reviewedToday / entries.length) * 100)) : 0
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(''), 3600)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   function openEditor(entry?: VocabularyEntry, preferredCategory?: Category) {
     setValidation('')
@@ -70,6 +103,7 @@ export default function App() {
 
   function refreshEntries() {
     setEntries(vocabularyRepository.list())
+    setReviewProgress(vocabularyRepository.getProgress())
   }
 
   function submitEntry(event: FormEvent<HTMLFormElement>) {
@@ -78,13 +112,11 @@ export default function App() {
       setValidation('请填写英文单词和中文释义，再保存。')
       return
     }
-    if (editor?.entry) {
-      vocabularyRepository.update(editor.entry.id, draft)
-    } else {
-      vocabularyRepository.create(draft)
-    }
+    if (editor?.entry) vocabularyRepository.update(editor.entry.id, draft)
+    else vocabularyRepository.create(draft)
     refreshEntries()
     closeEditor()
+    setNotice(editor?.entry ? '词条已更新。' : '新词已加入词库，稍后记得复习。')
   }
 
   function deleteEntry(entry: VocabularyEntry) {
@@ -92,10 +124,55 @@ export default function App() {
     vocabularyRepository.remove(entry.id)
     refreshEntries()
     if (editor?.entry?.id === entry.id) closeEditor()
+    setNotice(`已删除 ${entry.word}。`)
   }
 
   function updateDraft<K extends keyof VocabularyDraft>(key: K, value: VocabularyDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
+  }
+
+  function startReview() {
+    const dueNow = vocabularyRepository.listDueEntries(entries, reviewProgress)
+    if (!dueNow.length) {
+      setNotice('今天的待复习词已完成，真不错。')
+      return
+    }
+    setReviewSessionEntries(dueNow)
+    setReviewOpen(true)
+  }
+
+  function recordReview(id: string, rating: ReviewRating) {
+    vocabularyRepository.markReviewed(id, rating)
+    setReviewProgress(vocabularyRepository.getProgress())
+  }
+
+  function exportBackup() {
+    const backup = vocabularyRepository.exportBackup()
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `CET6-vocab-backup-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.append(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setNotice(`已导出 ${backup.entries.length} 个词条及复习进度。`)
+  }
+
+  async function importBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const payload: unknown = JSON.parse(await file.text())
+      const result = vocabularyRepository.importBackup(payload)
+      refreshEntries()
+      setNotice(`导入完成：新增 ${result.imported} 个，跳过重复词 ${result.skipped} 个。`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : '备份文件无法读取，请确认文件格式。')
+    } finally {
+      event.target.value = ''
+    }
   }
 
   return (
@@ -107,6 +184,9 @@ export default function App() {
         </a>
         <div className="topbar-tools">
           <span className="save-note"><span className="status-dot" /> 本地已保存</span>
+          <button className="button button-review" onClick={startReview} aria-label={`今日复习，${reviewSummary.due} 张待复习`}>
+            <GraduationCap size={17} /> <span className="review-button-label">今日复习</span> <span className="button-count">{reviewSummary.due}</span>
+          </button>
           <button className="button button-primary" onClick={() => openEditor()}>
             <Plus size={17} /> 录入生词
           </button>
@@ -122,16 +202,17 @@ export default function App() {
           <div className="hero-stats" aria-label="词汇统计">
             <span><strong>{entries.length}</strong> 收录词汇</span>
             <span><strong>{manualCount}</strong> 手动录入</span>
-            <span><strong>{categoryList.filter((category) => categoryEntries(category, entries) > 0).length}</strong> 已覆盖题型</span>
+            <span><strong>{categoryCount}</strong> 已覆盖题型</span>
           </div>
         </div>
-        <div className="hero-card" aria-label="本次复习推荐">
-          <div className="hero-card-top"><span>本次复习</span><Sparkles size={15} /></div>
-          {featured ? <>
-            <p className="hero-word">{featured.word}</p>
-            <p className="hero-definition">{featured.definition}</p>
-            <button className="text-button" onClick={() => openEditor(featured)}>查看词卡 <ChevronRight size={15} /></button>
-          </> : <p className="hero-definition">先录入第一张词卡，开始积累吧。</p>}
+        <div className="hero-card" aria-label="今日复习进度">
+          <div className="hero-card-top"><span>今日复习</span><Sparkles size={15} /></div>
+          <div className="review-summary-line"><strong>{reviewSummary.due}</strong><span>张待复习词卡</span></div>
+          <div className="hero-progress-track"><span style={{ width: `${todayProgress}%` }} /></div>
+          <div className="hero-review-meta"><span>已复习 {reviewSummary.reviewedToday} 张</span><span>{reviewSummary.mastered} 个已掌握</span></div>
+          <button className="review-cta" onClick={startReview} disabled={reviewSummary.due === 0}>
+            {reviewSummary.due ? '开始复习' : '今日已完成'} <ChevronRight size={16} />
+          </button>
         </div>
       </section>
 
@@ -153,6 +234,10 @@ export default function App() {
             <div className="auto-note-icon"><BookmarkPlus size={17} /></div>
             <div><b>自动收录，准备就绪</b><p>词库接口已预留，未来可接入阅读材料或 AI 自动整理。</p></div>
           </div>
+          <div className="study-note">
+            <span className="study-note-icon"><Check size={15} /></span>
+            <p><b>小步复习</b><br />每天复习几张卡，比临考突击更牢。</p>
+          </div>
         </aside>
 
         <section className="content-area" aria-label="词汇卡列表">
@@ -161,16 +246,30 @@ export default function App() {
               <p className="eyebrow">VOCABULARY LIBRARY</p>
               <h2>{activeCategory === 'all' ? '全部词汇' : CATEGORY_META[activeCategory].label}</h2>
             </div>
-            <button className="button button-ghost mobile-add" onClick={() => openEditor()}><Plus size={17} /> 新词</button>
+            <div className="heading-actions">
+              <button className={showDueOnly ? 'button button-filter active' : 'button button-filter'} onClick={() => setShowDueOnly((value) => !value)} aria-pressed={showDueOnly}>
+                <RotateCcw size={15} /> 待复习 <span className="filter-count">{reviewSummary.due}</span>
+              </button>
+              <button className="button button-ghost mobile-add" onClick={() => openEditor()}><Plus size={17} /> 新词</button>
+            </div>
           </div>
 
           <div className="search-row">
             <label className="search-box">
               <Search size={19} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索英文单词或中文释义..." aria-label="搜索英文单词或中文释义" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索英文单词、释义或例句..." aria-label="搜索英文单词、释义或例句" />
               {query && <button className="clear-search" onClick={() => setQuery('')} aria-label="清空搜索"><X size={16} /></button>}
             </label>
             <span className="result-count">显示 <b>{filteredEntries.length}</b> / {entries.length}</span>
+          </div>
+
+          <div className="backup-row">
+            <p>词库保存在当前浏览器，建议定期备份。</p>
+            <div className="backup-actions">
+              <button className="button button-quiet" onClick={exportBackup} title="下载词条和复习进度"><Download size={15} /> 导出备份</button>
+              <button className="button button-quiet" onClick={() => importInput.current?.click()} title="从六级词汇本 JSON 备份恢复"><Upload size={15} /> 导入备份</button>
+              <input ref={importInput} className="hidden-file-input" type="file" accept=".json,application/json" onChange={importBackup} aria-label="选择 JSON 备份文件" />
+            </div>
           </div>
 
           <div className="alphabet-index" aria-label="按首字母筛选">
@@ -188,14 +287,15 @@ export default function App() {
             {filteredEntries.map((entry) => <WordCard key={entry.id} entry={entry} onEdit={() => openEditor(entry)} onDelete={() => deleteEntry(entry)} />)}
           </div> : <div className="empty-state">
             <div className="empty-icon"><Search size={25} /></div>
-            <h3>没有找到匹配的词汇</h3>
-            <p>换个关键词，或清除当前的索引与分类条件。</p>
-            <button className="button button-ghost" onClick={() => { setQuery(''); setActiveLetter(null); setActiveCategory('all') }}>重置筛选</button>
+            <h3>{showDueOnly && !reviewSummary.due ? '今天没有待复习的词' : '没有找到匹配的词汇'}</h3>
+            <p>{showDueOnly && !reviewSummary.due ? '间隔复习会在词条到期时提醒你回来。' : '换个关键词，或清除当前的索引与分类条件。'}</p>
+            <button className="button button-ghost" onClick={() => { setQuery(''); setActiveLetter(null); setActiveCategory('all'); setShowDueOnly(false) }}>重置筛选</button>
           </div>}
         </section>
       </div>
 
-      <footer><span>六级词汇本</span><span>为每一个不认识的词，留下一张卡。</span></footer>
+      <footer><span>六级词汇本</span><span>为每一个不认识的词，留下一张卡。词库保存在此浏览器，请记得导出备份。</span></footer>
+      {notice && <div className="notice-toast" role="status" aria-live="polite">{notice}</div>}
 
       {editor && <EditorModal
         entry={editor.entry}
@@ -205,6 +305,11 @@ export default function App() {
         onClose={closeEditor}
         onSubmit={submitEntry}
         onDelete={editor.entry ? () => deleteEntry(editor.entry!) : undefined}
+      />}
+      {reviewOpen && <ReviewModal
+        entries={reviewSessionEntries}
+        onRate={recordReview}
+        onClose={() => { setReviewOpen(false); setReviewSessionEntries([]) }}
       />}
     </main>
   )
@@ -219,6 +324,7 @@ function WordCard({ entry, onEdit, onDelete }: { entry: VocabularyEntry; onEdit:
     </div>
     <div className="word-main">
       <h3>{entry.word}</h3>
+      <button className="speech-button" onClick={() => speakEnglishWord(entry.word)} aria-label={`播放 ${entry.word} 的发音`} title="播放单词发音"><Volume2 size={15} /></button>
       {entry.phonetic && <span className="phonetic">{entry.phonetic}</span>}
     </div>
     <p className="definition">{entry.definition}</p>
@@ -248,8 +354,9 @@ function EditorModal({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onDelete?: () => void
 }) {
+  const dialogRef = useDialogA11y(onClose)
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <section ref={dialogRef} tabIndex={-1} className="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
       <header className="modal-header">
         <div><p className="eyebrow">{entry ? 'UPDATE ENTRY' : 'NEW VOCABULARY'}</p><h2 id="editor-title">{entry ? '编辑词条' : '录入生词'}</h2></div>
         <button className="icon-button" onClick={onClose} aria-label="关闭"><X size={21} /></button>

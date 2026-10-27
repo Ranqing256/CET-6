@@ -8,6 +8,7 @@ export const CATEGORY_META = {
 
 export type Category = keyof typeof CATEGORY_META
 export type VocabSource = 'manual' | 'sample' | 'automatic'
+export type ReviewRating = 'again' | 'known'
 
 export interface VocabularyEntry {
   id: string
@@ -29,6 +30,28 @@ export interface VocabularyDraft {
   phonetic?: string
   example?: string
   note?: string
+}
+
+export interface ReviewProgress {
+  dueAt: string
+  lastReviewedAt: string
+  intervalDays: number
+  reviewCount: number
+  streak: number
+}
+
+export interface ReviewSummary {
+  due: number
+  reviewedToday: number
+  mastered: number
+}
+
+export interface VocabularyBackup {
+  format: 'cet6-vocabulary-notebook'
+  version: 1
+  exportedAt: string
+  entries: VocabularyEntry[]
+  progress: Record<string, ReviewProgress>
 }
 
 /**

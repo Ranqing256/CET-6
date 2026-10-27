@@ -1,8 +1,14 @@
 # 六级词汇本
 
-一个面向大学英语六级备考的个人词汇本。它支持按听力、完形填空、阅读、翻译、作文管理生词，提供单词卡、分类、首字母索引、全文搜索以及录入、编辑和删除功能。
+面向大学英语六级备考的个人词汇本。支持按听力、完形填空、阅读、翻译、作文管理生词，并提供首字母索引、全文搜索、单词卡、词条编辑和删除。
 
-首版将词汇保存于浏览器的 `localStorage`，因此无需登录即可使用。`src/data/repository.ts` 提供统一仓储接口，包含 `upsertFromAutomation` 自动入库方法；后续接入阅读材料、OCR、AI 或 Vercel 数据库时，可以替换仓储实现而无需改动界面。
+## 学习功能
+
+- **间隔复习**：先回想、再揭晓释义；标记“认识”后按 1、3、7、14、30 天间隔复习，标记“再复习”则 10 分钟后重新到期。
+- **浏览器发音**：使用浏览器原生语音能力朗读单词，不调用外部语音服务。
+- **备份与恢复**：下载包含词条和复习进度的 JSON 备份；导入时按单词忽略大小写去重，不覆盖已有词条。
+
+首版将词汇及复习进度保存在浏览器的 `localStorage`，因此无需登录即可使用，但不会自动同步到其他设备。建议定期导出备份。`src/data/repository.ts` 提供统一仓储接口和 `upsertFromAutomation` 自动入库入口；后续可替换为 Vercel API/数据库实现，而不必重写界面。
 
 ## 本地运行
 
@@ -13,9 +19,7 @@ pnpm dev
 
 ## 部署到 Vercel
 
-1. 将项目推送至 GitHub、GitLab 或 Bitbucket。
-2. 在 Vercel 选择 **Add New → Project** 并导入该仓库。
-3. Vercel 会识别 Vite；保持构建命令为 `pnpm build`，输出目录为 `dist`。
-4. 点击 Deploy。项目内的 `vercel.json` 已包含单页应用回退规则。
-
-> 提示：目前词汇数据只保存在每台设备的浏览器中。若希望多设备同步，可将 `vocabularyRepository` 更换为 Vercel Postgres、KV 或任意 API 的实现。
+1. 将项目推送至 GitHub、GitLab 或 Bitbucket，并在 Vercel 导入该仓库。
+2. 框架使用 Vite，根目录为 `./`。
+3. 构建命令：`pnpm build`；输出目录：`dist`；安装命令：`pnpm install --frozen-lockfile`。
+4. 点击 Deploy。`vercel.json` 已包含单页应用回退规则。
