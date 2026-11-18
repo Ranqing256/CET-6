@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CircleHelp,
   Download,
+  Gauge,
   GraduationCap,
   ListFilter,
   Pencil,
@@ -26,6 +27,8 @@ import { useDialogA11y } from './utils/useDialogA11y'
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 const categoryList = Object.keys(CATEGORY_META) as Category[]
+const DEFAULT_SPEECH_RATE = 1.1
+const SPEECH_RATE_OPTIONS = [1, 1.1, 1.2] as const
 
 type ActiveCategory = Category | 'all'
 type EditorState = { entry?: VocabularyEntry } | null
@@ -61,6 +64,14 @@ export default function App() {
   const [englishVoices, setEnglishVoices] = useState<SpeechSynthesisVoice[]>(() => getEnglishVoices())
   const [preferredVoiceURI, setPreferredVoiceURI] = useState(() => {
     try { return window.localStorage.getItem('cet6-english-voice-v1') ?? '' } catch { return '' }
+  })
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    try {
+      const stored = Number(window.localStorage.getItem('cet6-speech-rate-v1'))
+      return SPEECH_RATE_OPTIONS.find((rate) => rate === stored) ?? DEFAULT_SPEECH_RATE
+    } catch {
+      return DEFAULT_SPEECH_RATE
+    }
   })
 
   const reviewSummary = useMemo(
@@ -105,8 +116,14 @@ export default function App() {
     }
   }, [preferredVoiceURI])
 
+  useEffect(() => {
+    try { window.localStorage.setItem('cet6-speech-rate-v1', String(speechRate)) } catch {
+      // Voice speed is a convenience; playback still works if browser storage is unavailable.
+    }
+  }, [speechRate])
+
   function playWord(word: string) {
-    void speakEnglishWord(word, preferredVoiceURI).catch((error: unknown) => {
+    void speakEnglishWord(word, { voiceURI: preferredVoiceURI, rate: speechRate }).catch((error: unknown) => {
       setNotice(error instanceof Error ? error.message : '语音播放失败，请切换英语音色后重试。')
     })
   }
@@ -285,15 +302,25 @@ export default function App() {
           </div>
 
           <div className="speech-settings">
-            <label htmlFor="english-voice"><Volume2 size={15} /><span>英语发音</span></label>
-            <select id="english-voice" value={preferredVoiceURI} onChange={(event) => setPreferredVoiceURI(event.target.value)} aria-describedby="voice-help">
-              <option value="">自动选择英语音色</option>
-              {englishVoices.map((voice) => <option key={`${voice.voiceURI}-${voice.lang}`} value={voice.voiceURI}>
-                {voice.name} · {voice.lang}{voice.default ? '（系统默认）' : ''}
-              </option>)}
-            </select>
+            <div className="speech-control voice-control">
+              <label htmlFor="english-voice"><Volume2 size={15} /><span>英语发音</span></label>
+              <select id="english-voice" value={preferredVoiceURI} onChange={(event) => setPreferredVoiceURI(event.target.value)} aria-describedby="voice-help">
+                <option value="">自动选择英语音色</option>
+                {englishVoices.map((voice) => <option key={`${voice.voiceURI}-${voice.lang}`} value={voice.voiceURI}>
+                  {voice.name} · {voice.lang}{voice.default ? '（系统默认）' : ''}
+                </option>)}
+              </select>
+            </div>
+            <div className="speech-control rate-control">
+              <label htmlFor="speech-rate"><Gauge size={15} /><span>语速</span></label>
+              <select id="speech-rate" value={speechRate} onChange={(event) => setSpeechRate(Number(event.target.value))} aria-label="选择英语朗读语速">
+                <option value={1}>标准 · 1.0×</option>
+                <option value={1.1}>稍快 · 1.1×</option>
+                <option value={1.2}>较快 · 1.2×</option>
+              </select>
+            </div>
             <span id="voice-help" className="voice-help">
-              {englishVoices.length ? `检测到 ${englishVoices.length} 个英语音色；音色由此设备和浏览器提供。` : '暂未检测到英语音色；仍会尝试使用系统默认英语语音。'}
+              {englishVoices.length ? `检测到 ${englishVoices.length} 个英语音色；连续点击会按顺序播放，避免互相打断。` : '暂未检测到英语音色；仍会尝试使用系统默认英语语音。'}
             </span>
           </div>
 
