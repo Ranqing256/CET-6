@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { vocabularyRepository } from './data/repository'
 import { ReviewModal } from './components/ReviewModal'
+import { DefinitionDisplay } from './components/DefinitionDisplay'
 import { CATEGORY_META, type Category, type ReviewProgress, type ReviewRating, type VocabularyDraft, type VocabularyEntry } from './types'
 import { getEnglishVoices, observeEnglishVoices, speakEnglishWord } from './utils/speech'
 import { useDialogA11y } from './utils/useDialogA11y'
@@ -389,7 +390,7 @@ function WordCard({ entry, onEdit, onDelete, onSpeak }: { entry: VocabularyEntry
       <button className="speech-button" onClick={() => onSpeak(entry.word)} aria-label={`播放 ${entry.word} 的发音`} title="播放单词发音"><Volume2 size={15} /></button>
       {entry.phonetic && <span className="phonetic">{entry.phonetic}</span>}
     </div>
-    <p className="definition">{entry.definition}</p>
+    <DefinitionDisplay entry={entry} className="definition" />
     <div className="card-rule" />
     {entry.example ? <p className="example">“{entry.example}”</p> : <p className="example muted">添加例句，让记忆更牢固。</p>}
     <div className="card-actions">

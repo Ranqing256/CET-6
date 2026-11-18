@@ -1,4 +1,5 @@
 import type { VocabularyEntry } from '../types'
+import { isEnrichedReadingWord } from '../data/enrichedReadingWords'
 
 export type EnrichedNoteSectionKey = 'collocations' | 'extensions' | 'distinctions'
 
@@ -8,52 +9,15 @@ export interface EnrichedNoteSection {
   content: string
 }
 
-const TARGET_READING_WORDS = new Set([
-  'by means of',
-  'deed',
-  'commemorate',
-  'descend',
-  'to date',
-  'petition',
-  'archive',
-  'auction',
-  'anonymous',
-  'oak',
-  'take shelter',
-  'invent',
-  'plantation',
-  'irrefutable',
-  'intervene',
-  'unfold',
-  'idly',
-  'diffusion',
-  'evade',
-  'frontline',
-  'precedent',
-  'alleviate',
-  'hazard',
-  'slack',
-  'strand',
-  'coal',
-  'neutrality',
-  'phase out',
-  'phase in',
-  'grid',
-  'lagging',
-  'adherence',
-])
-
 const SECTION_LABELS: Record<EnrichedNoteSectionKey, string> = {
   collocations: '搭配',
   extensions: '拓展',
   distinctions: '辨析',
 }
 
-/**
- * 只为 2026-11-18 批量录入的 32 个阅读词拆分旧笔记；其他词条继续按原样显示。
- */
+/** Only the 32 reading entries added on 2026-11-18 have their original notes split into panels. */
 export function getEnrichedNoteSections(entry: Pick<VocabularyEntry, 'word' | 'category' | 'note'>): EnrichedNoteSection[] | null {
-  if (entry.category !== 'reading' || !TARGET_READING_WORDS.has(entry.word.trim().toLocaleLowerCase())) return null
+  if (!isEnrichedReadingWord(entry)) return null
   const note = entry.note?.trim()
   if (!note) return null
 

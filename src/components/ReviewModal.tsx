@@ -3,6 +3,7 @@ import { Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { CATEGORY_META, type ReviewRating, type VocabularyEntry } from '../types'
 import { useDialogA11y } from '../utils/useDialogA11y'
 import { getEnrichedNoteSections } from '../utils/enrichedNoteSections'
+import { DefinitionDisplay } from './DefinitionDisplay'
 
 interface ReviewModalProps {
   entries: VocabularyEntry[]
@@ -73,7 +74,7 @@ export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalPr
           </div>
           {current.phonetic && <p className="review-phonetic">{current.phonetic}</p>}
           {revealed ? <div className="review-answer">
-            <p className="review-definition">{current.definition}</p>
+            <DefinitionDisplay entry={current} className="review-definition" />
             {current.example && <p className="review-example">“{current.example}”</p>}
             {noteSections ? <div className="review-expanded-notes" aria-label="搭配、拓展与辨析">
               <div className="review-expanded-heading"><strong>词汇扩展</strong><span>搭配 · 拓展 · 辨析</span></div>

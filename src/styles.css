@@ -298,3 +298,16 @@ form { display: grid; gap: 15px; } form label { display: grid; gap: 7px; color: 
   .review-expanded-section { padding: 10px 11px; }
   .review-expanded-section p { font-size: 14px; line-height: 1.8; }
 }
+
+
+/* Only the 2026-11-18 reading batch renders part-of-speech labels as separate lines. */
+.pos-definition-list { display: grid; gap: 5px; }
+.pos-definition-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 8px; margin: 0; }
+.pos-definition-label { color: #1e3a8a; font-weight: 800; white-space: nowrap; }
+.pos-definition-text { min-width: 0; font-weight: 500; }
+.review-definition.pos-definition-list { font-weight: 500; }
+.review-definition.pos-definition-list .pos-definition-line { line-height: 1.72; }
+
+@media (max-width: 530px) {
+  .review-definition.pos-definition-list .pos-definition-line { font-size: 15px; line-height: 1.7; }
+}
