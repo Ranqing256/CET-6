@@ -288,7 +288,7 @@ form { display: grid; gap: 15px; } form label { display: grid; gap: 7px; color: 
 .review-expanded-section p {
   margin: 0;
   color: #3d516b;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
@@ -296,5 +296,5 @@ form { display: grid; gap: 15px; } form label { display: grid; gap: 7px; color: 
   .review-expanded-notes { gap: 8px; margin-top: 14px; padding: 10px; }
   .review-expanded-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
   .review-expanded-section { padding: 10px 11px; }
-  .review-expanded-section p { font-size: 13px; line-height: 1.8; }
+  .review-expanded-section p { font-size: 14px; line-height: 1.8; }
 }
