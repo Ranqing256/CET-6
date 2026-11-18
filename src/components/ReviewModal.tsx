@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { CATEGORY_META, type ReviewRating, type VocabularyEntry } from '../types'
 import { useDialogA11y } from '../utils/useDialogA11y'
+import { getEnrichedNoteSections } from '../utils/enrichedNoteSections'
 
 interface ReviewModalProps {
   entries: VocabularyEntry[]
@@ -21,6 +22,7 @@ export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalPr
   const current = entries[index]
   const meta = current ? CATEGORY_META[current.category] : undefined
   const progressPercent = entries.length ? Math.round((ratedCount / entries.length) * 100) : 100
+  const noteSections = current ? getEnrichedNoteSections(current) : null
 
   function rate(rating: ReviewRating) {
     if (!current) return
@@ -73,7 +75,13 @@ export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalPr
           {revealed ? <div className="review-answer">
             <p className="review-definition">{current.definition}</p>
             {current.example && <p className="review-example">“{current.example}”</p>}
-            {current.note && <p className="review-note">笔记：{current.note}</p>}
+            {noteSections ? <div className="review-expanded-notes" aria-label="搭配、拓展与辨析">
+              <div className="review-expanded-heading"><strong>词汇扩展</strong><span>搭配 · 拓展 · 辨析</span></div>
+              {noteSections.map((section) => <section key={section.key} className={`review-expanded-section ${section.key}`}>
+                <h4>{section.label}</h4>
+                <p>{section.content}</p>
+              </section>)}
+            </div> : current.note && <p className="review-note">笔记：{current.note}</p>}
             <div className="review-ratings">
               <button className="button button-again" onClick={() => rate('again')}><RotateCcw size={16} /> 再复习 <small>10 分钟后</small></button>
               <button className="button button-primary" onClick={() => rate('known')}><Check size={16} /> 认识</button>
