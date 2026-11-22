@@ -18,6 +18,7 @@ export interface VocabularyEntry {
   phonetic?: string
   example?: string
   note?: string
+  noteDisplay?: 'large-simple'
   source: VocabSource
   createdAt: string
   updatedAt: string

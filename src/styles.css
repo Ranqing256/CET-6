@@ -101,6 +101,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .card-rule { height: 1px; margin: 13px 0 10px; background: linear-gradient(90deg, var(--card-accent), #e7eef7 46%, transparent); opacity: .45; }
 .example { min-height: 31px; margin: 0; color: #64748b; font-size: 10px; font-style: italic; line-height: 1.55; }
 .example.muted { color: #a3b2c6; font-style: normal; }
+.word-simple-note { margin-top: 4px; padding: 10px 11px; color: #3d516b; background: #f1f7fc; border: 1px solid #dce9f6; border-left: 3px solid #60a5fa; border-radius: 7px; }
+.word-simple-note h4 { margin: 0 0 4px; color: #315780; font-size: 11px; font-weight: 700; }
+.word-simple-note p { margin: 0; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; }
 .card-actions button { padding: 3px 0; border: 0; color: #64748b; background: transparent; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; }
 .card-actions button:hover { color: #1e3a8a; }
@@ -174,6 +177,9 @@ form { display: grid; gap: 15px; } form label { display: grid; gap: 7px; color: 
 .review-definition { margin: 0; color: #263c5f; font-size: 17px; font-weight: 700; line-height: 1.6; }
 .review-example { margin: 11px 0 0; color: #64748b; font-size: 12px; font-style: italic; line-height: 1.65; }
 .review-note { margin: 9px 0 0; padding: 8px 10px; color: #48617f; background: #f2f7fd; border-radius: 6px; font-size: 11px; line-height: 1.6; }
+.review-simple-note { margin-top: 16px; padding: 14px 16px; background: linear-gradient(180deg, #f3f8fd, #edf5fb); border: 1px solid #d9e7f4; border-left: 3px solid #60a5fa; border-radius: 9px; }
+.review-simple-note h4 { margin: 0 0 6px; color: #315780; font-size: 13px; font-weight: 700; }
+.review-simple-note p { margin: 0; color: #3d516b; font-size: 16px; line-height: 1.85; overflow-wrap: anywhere; }
 .review-ratings { display: flex; justify-content: flex-end; gap: 9px; margin-top: 25px; }
 .button-again { color: #7c2d12; background: #fff7ed; border: 1px solid #fed7aa; }
 .button-again:hover { background: #ffedd5; }
@@ -213,6 +219,8 @@ form { display: grid; gap: 15px; } form label { display: grid; gap: 7px; color: 
   .review-card { min-height: 280px; padding: 21px; }
   .review-ratings { flex-direction: column; }
   .review-ratings .button { width: 100%; }
+  .review-simple-note { margin-top: 14px; padding: 11px 12px; }
+  .review-simple-note p { font-size: 15px; line-height: 1.75; }
   .notice-toast { right: 16px; bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {

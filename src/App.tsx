@@ -206,7 +206,7 @@ export default function App() {
       const payload: unknown = JSON.parse(await file.text())
       const result = vocabularyRepository.importBackup(payload)
       refreshEntries()
-      setNotice(`导入完成：新增 ${result.imported} 个，跳过重复词 ${result.skipped} 个。`)
+      setNotice(`导入完成：新增 ${result.imported} 个，更新 ${result.updated} 个，跳过重复词 ${result.skipped} 个。`)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '备份文件无法读取，请确认文件格式。')
     } finally {
@@ -392,7 +392,13 @@ function WordCard({ entry, onEdit, onDelete, onSpeak }: { entry: VocabularyEntry
     </div>
     <DefinitionDisplay entry={entry} className="definition" />
     <div className="card-rule" />
-    {entry.example ? <p className="example">“{entry.example}”</p> : <p className="example muted">添加例句，让记忆更牢固。</p>}
+    {entry.example && <p className="example">“{entry.example}”</p>}
+    {entry.noteDisplay === 'large-simple' && entry.note?.trim()
+      ? <section className="word-simple-note" aria-label="搭配">
+        <h4>搭配</h4>
+        <p>{entry.note}</p>
+      </section>
+      : !entry.example && <p className="example muted">添加例句，让记忆更牢固。</p>}
     <div className="card-actions">
       <button onClick={onEdit}><Pencil size={14} /> 编辑</button>
       <button className="delete-button" onClick={onDelete} aria-label={`删除 ${entry.word}`}><Trash2 size={14} /></button>

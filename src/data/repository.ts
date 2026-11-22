@@ -212,7 +212,7 @@ export const vocabularyRepository = {
     }
   },
 
-  importBackup(payload: unknown): { imported: number; skipped: number } {
+  importBackup(payload: unknown): { imported: number; updated: number; skipped: number } {
     if (!isRecord(payload)
       || payload.format !== 'cet6-vocabulary-notebook'
       || payload.version !== 1
@@ -228,6 +228,8 @@ export const vocabularyRepository = {
     const nextProgress = this.getProgress()
     const sourceProgress = payload.progress as Record<string, ReviewProgress>
     const importedEntries: VocabularyEntry[] = []
+    const updatedEntries = new Map<string, VocabularyEntry>()
+    let updated = 0
     let skipped = 0
 
     for (const [index, raw] of payload.entries.entries()) {
@@ -243,11 +245,31 @@ export const vocabularyRepository = {
       const word = raw.word.trim()
       const normalizedWord = word.toLocaleLowerCase()
       if (existingWords.has(normalizedWord)) {
-        skipped += 1
         const oldId = typeof raw.id === 'string' ? raw.id : ''
         const target = existingByWord.get(normalizedWord)
         const savedProgress = oldId ? sourceProgress[oldId] : undefined
         if (target && savedProgress && !nextProgress[target.id]) nextProgress[target.id] = savedProgress
+        if (target
+          && raw.noteDisplay === 'large-simple'
+          && raw.category === 'listening'
+          && raw.source === 'automatic'
+          && typeof raw.note === 'string') {
+          const refreshed: VocabularyEntry = {
+            ...target,
+            definition: raw.definition.trim(),
+            category: raw.category,
+            phonetic: typeof raw.phonetic === 'string' ? raw.phonetic.trim() : undefined,
+            example: typeof raw.example === 'string' ? raw.example.trim() : undefined,
+            note: raw.note.trim(),
+            noteDisplay: 'large-simple',
+            updatedAt: new Date().toISOString(),
+          }
+          updatedEntries.set(target.id, refreshed)
+          existingByWord.set(normalizedWord, refreshed)
+          updated += 1
+        } else {
+          skipped += 1
+        }
         continue
       }
 
@@ -261,6 +283,7 @@ export const vocabularyRepository = {
         phonetic: typeof raw.phonetic === 'string' ? raw.phonetic.trim() : undefined,
         example: typeof raw.example === 'string' ? raw.example.trim() : undefined,
         note: typeof raw.note === 'string' ? raw.note.trim() : undefined,
+        noteDisplay: raw.noteDisplay === 'large-simple' && raw.category === 'listening' ? 'large-simple' : undefined,
         source: isVocabSource(raw.source) ? raw.source : 'manual',
         createdAt: isValidDate(raw.createdAt) ? raw.createdAt : now,
         updatedAt: now,
@@ -272,8 +295,9 @@ export const vocabularyRepository = {
       if (savedProgress) nextProgress[entry.id] = savedProgress
     }
 
-    writeNotebook(byWord([...existing, ...importedEntries]), nextProgress)
-    return { imported: importedEntries.length, skipped }
+    const refreshedExisting = existing.map((entry) => updatedEntries.get(entry.id) ?? entry)
+    writeNotebook(byWord([...refreshedExisting, ...importedEntries]), nextProgress)
+    return { imported: importedEntries.length, updated, skipped }
   },
 
   /** 自动收录入口：后续接入 OCR、阅读材料或 API 时调用。 */

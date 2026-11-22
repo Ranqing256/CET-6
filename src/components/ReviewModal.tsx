@@ -76,13 +76,22 @@ export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalPr
           {revealed ? <div className="review-answer">
             <DefinitionDisplay entry={current} className="review-definition" />
             {current.example && <p className="review-example">“{current.example}”</p>}
-            {noteSections ? <div className="review-expanded-notes" aria-label="搭配、拓展与辨析">
-              <div className="review-expanded-heading"><strong>词汇扩展</strong><span>搭配 · 拓展 · 辨析</span></div>
-              {noteSections.map((section) => <section key={section.key} className={`review-expanded-section ${section.key}`}>
-                <h4>{section.label}</h4>
-                <p>{section.content}</p>
-              </section>)}
-            </div> : current.note && <p className="review-note">笔记：{current.note}</p>}
+            {current.category === 'listening' && current.noteDisplay === 'large-simple' && current.note?.trim()
+              ? (
+                <section className="review-simple-note" aria-label="搭配">
+                <h4>搭配</h4>
+                <p>{current.note}</p>
+                </section>
+              )
+              : noteSections ? (
+                <div className="review-expanded-notes" aria-label="搭配、拓展与辨析">
+                  <div className="review-expanded-heading"><strong>词汇扩展</strong><span>搭配 · 拓展 · 辨析</span></div>
+                  {noteSections.map((section) => <section key={section.key} className={`review-expanded-section ${section.key}`}>
+                    <h4>{section.label}</h4>
+                    <p>{section.content}</p>
+                  </section>)}
+                </div>
+              ) : current.note ? <p className="review-note">笔记：{current.note}</p> : null}
             <div className="review-ratings">
               <button className="button button-again" onClick={() => rate('again')}><RotateCcw size={16} /> 再复习 <small>10 分钟后</small></button>
               <button className="button button-primary" onClick={() => rate('known')}><Check size={16} /> 认识</button>
