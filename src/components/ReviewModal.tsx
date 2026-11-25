@@ -76,7 +76,7 @@ export function ReviewModal({ entries, onClose, onRate, onSpeak }: ReviewModalPr
           {revealed ? <div className="review-answer">
             <DefinitionDisplay entry={current} className="review-definition" />
             {current.example && <p className="review-example">“{current.example}”</p>}
-            {current.category === 'listening' && current.noteDisplay === 'large-simple' && current.note?.trim()
+            {current.noteDisplay === 'large-simple' && current.note?.trim()
               ? (
                 <section className="review-simple-note" aria-label="搭配">
                 <h4>搭配</h4>

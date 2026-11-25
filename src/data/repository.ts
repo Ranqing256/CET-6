@@ -283,7 +283,7 @@ export const vocabularyRepository = {
         phonetic: typeof raw.phonetic === 'string' ? raw.phonetic.trim() : undefined,
         example: typeof raw.example === 'string' ? raw.example.trim() : undefined,
         note: typeof raw.note === 'string' ? raw.note.trim() : undefined,
-        noteDisplay: raw.noteDisplay === 'large-simple' && raw.category === 'listening' ? 'large-simple' : undefined,
+        noteDisplay: raw.noteDisplay === 'large-simple' ? 'large-simple' : undefined,
         source: isVocabSource(raw.source) ? raw.source : 'manual',
         createdAt: isValidDate(raw.createdAt) ? raw.createdAt : now,
         updatedAt: now,
