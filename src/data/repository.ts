@@ -251,7 +251,6 @@ export const vocabularyRepository = {
         if (target && savedProgress && !nextProgress[target.id]) nextProgress[target.id] = savedProgress
         if (target
           && raw.noteDisplay === 'large-simple'
-          && raw.category === 'listening'
           && raw.source === 'automatic'
           && typeof raw.note === 'string') {
           const refreshed: VocabularyEntry = {
